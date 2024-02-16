@@ -2,10 +2,9 @@ pipeline {
      environment {
       DOCKERHUB_AUTH  = credentials('dockerhub')
       ID_DOCKER = "${DOCKERHUB_AUTH_USR}"
-      IMAGE_NAME = "${IMAGE_NAME_PARAMS}"
-      IMAGE_TAG = "${IMAGE_TAG_PARAMS}"
       PORT_EXPOSED = "80"
-      PRODUCTION = "${ID_DOCKER}-production"
+      HOSTNAME_DEPLOY_STAGING = "ec2-100-26-192-220.compute-1.amazonaws.com"
+      HOSTNAME_DEPLOY_PROD = "ec2-100-26-192-220.compute-1.amazonaws.com"
      }
      agent none
      stages {
@@ -70,9 +69,6 @@ pipeline {
         when {
             expression { GIT_BRANCH == 'origin/master' }
         }
-        environment {
-            HOSTNAME_DEPLOY_STAGING = "ec2-100-26-192-220.compute-1.amazonaws.com"
-        }  
         steps {
             sshagent(credentials: ['SSH_AUTH']) {
                 sh '''
@@ -92,26 +88,32 @@ pipeline {
             }
         }
     }
+    stage('Test Staging') {
+          agent any
+          steps {
+             script {
+               sh '''
+                 curl ${HOSTNAME_DEPLOY_STAGING} | grep -q "Hello world!"
+               '''
+             }
+          }
+     }
 
     stage('Deploy in prod') {
         agent any
         when {
             expression { GIT_BRANCH == 'origin/master' }
         }
-        environment {
-            DOCKERHUB_AUTH  = credentials('dockerhub')
-            HOSTNAME_DEPLOY_STAGING = "ec2-100-26-192-220.compute-1.amazonaws.com"
-        }  
         steps {
             sshagent(credentials: ['SSH_AUTH']) {
                 sh '''
                     [ -d ~/.ssh ] || mkdir ~/.ssh && chmod 0700 ~/.ssh
-                    ssh-keyscan -t rsa,dsa ${HOSTNAME_DEPLOY_STAGING} >> ~/.ssh/known_hosts
+                    ssh-keyscan -t rsa,dsa ${HOSTNAME_DEPLOY_PROD} >> ~/.ssh/known_hosts
                     command1="docker login -u $DOCKERHUB_AUTH_USR -p $DOCKERHUB_AUTH_PSW"
                     command2="docker pull $DOCKERHUB_AUTH_USR/$IMAGE_NAME:$IMAGE_TAG"
                     command3="docker rm -f webapp"
                     command4="docker run -d -p 80:5000 -e PORT=5000 --name webapp $DOCKERHUB_AUTH_USR/$IMAGE_NAME:$IMAGE_TAG"
-                    ssh -t centos@${HOSTNAME_DEPLOY_STAGING} \
+                    ssh -t centos@${HOSTNAME_DEPLOY_PROD} \
                         -o SendEnv=IMAGE_NAME \
                         -o SendEnv=IMAGE_TAG \
                         -o SendEnv=DOCKERHUB_AUTH_USR \
@@ -121,6 +123,16 @@ pipeline {
             }
         }
     }
+    stage('Test Prod') {
+          agent any
+          steps {
+             script {
+               sh '''
+                 curl ${HOSTNAME_DEPLOY_PROD} | grep -q "Hello world!"
+               '''
+             }
+          }
+     }
   }
   post {
     success {
