@@ -5,7 +5,6 @@ pipeline {
         ID_DOCKER = "${DOCKERHUB_AUTH_USR}"
         PORT_EXPOSED = "80"
     }
-
     stages {
         stage ('Build Image') {
             agent any

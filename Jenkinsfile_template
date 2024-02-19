@@ -3,6 +3,7 @@ pipeline {
         PORT_EXPOSED = "80"
         PRODUCTION = "${ID_DOCKER}-production"
      }
+
      agent none
      stages {
         stage('Run container based on builded image') {
