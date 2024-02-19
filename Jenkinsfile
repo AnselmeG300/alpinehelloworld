@@ -1,5 +1,6 @@
 pipeline {
     agent none
+    
     environment {
         DOCKERHUB_AUTH = credentials('DOCKERHUB_AUTH')
         ID_DOCKER = "${DOCKERHUB_AUTH_USR}"
