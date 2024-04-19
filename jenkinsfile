@@ -100,6 +100,17 @@ pipeline {
             }
         }
 
+         stage('Test Staging') {
+            agent any
+            steps {
+              script {
+                sh '''
+                  curl ${HOSTNAME_DEPLOY_STAGING} | grep -q "Hello world Lewis!"
+                '''
+              }
+            }
+        }
+
         stage ('Deploy prod') {
             agent any 
             when {
@@ -122,6 +133,17 @@ pipeline {
                             -C "${command1} && ${command2} && ${command3} && ${command4}"
                     '''
                 }
+            }
+        }
+
+        stage('Test Prod') {
+            agent any
+            steps {
+              script {
+                sh '''
+                  curl ${HOSTNAME_DEPLOY_PROD} | grep -q "Hello world Lewis!"
+                '''
+              }
             }
         }
     }
