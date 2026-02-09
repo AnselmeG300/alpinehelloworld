@@ -7,6 +7,8 @@ pipeline {
         IMAGE_NAME = "alpinebootcamp28"
         IMAGE_TAG = "v1.1"
         DOCKER_USERNAME = "${ID_DOCKER}"
+        HOSTNAME_DEPLOY_STAGING = "54.167.33.165"
+        HOSTNAME_DEPLOY_PROD = "23.20.46.224"
     }
     stages {
       stage ('Build image'){
@@ -60,29 +62,40 @@ pipeline {
            when {
                 expression { GIT_BRANCH == 'origin/master' }
             }
-            environment {
-                SERVER_IP = "54.167.33.165"
-            }
           steps {
             sshagent(['SSH_AUTH_SERVER']) {
                 sh '''
-                    ssh -o StrictHostKeyChecking=no -l ubuntu $SERVER_IP "docker rm -f $IMAGE_NAME || echo 'All deleted'"
-                    ssh -o StrictHostKeyChecking=no -l ubuntu $SERVER_IP "docker pull $DOCKER_USERNAME/$IMAGE_NAME:$IMAGE_TAG || echo 'Image Download successfully'"
-                    sleep 30
-                    ssh -o StrictHostKeyChecking=no -l ubuntu $SERVER_IP "docker run --rm -dp $PORT_EXPOSED:8080 -e PORT=8080 --name $IMAGE_NAME $DOCKER_USERNAME/$IMAGE_NAME:$IMAGE_TAG"
-                    sleep 5
-                    curl -I http://$SERVER_IP:$PORT_EXPOSED
+                    [ -d ~/.ssh ] || mkdir ~/.ssh && chmod 0700 ~/.ssh
+                    ssh-keyscan -t rsa,dsa ${HOSTNAME_DEPLOY_STAGING} >> ~/.ssh/known_hosts
+                    command1="docker login -u $DOCKERHUB_AUTH_USR -p $DOCKERHUB_AUTH_PSW"
+                    command2="docker pull $DOCKERHUB_AUTH_USR/$IMAGE_NAME:$IMAGE_TAG"
+                    command3="docker rm -f alpinebootcamp28 || echo 'app does not exist'"
+                    command4="docker run -d -p 80:8080 -e PORT=8080 --name alpinebootcamp28 $DOCKERHUB_AUTH_USR/$IMAGE_NAME:$IMAGE_TAG"
+                    ssh -t ubuntu@${HOSTNAME_DEPLOY_STAGING} \
+                        -o SendEnv=IMAGE_NAME \
+                        -o SendEnv=IMAGE_TAG \
+                        -o SendEnv=DOCKERHUB_AUTH_USR \
+                        -o SendEnv=DOCKERHUB_AUTH_PSW \
+                        -C "$command1 && $command2 && $command3 && $command4"
                 '''
             }
           }
       }
+      stage('Test Staging') {
+            agent any
+            steps {
+              script {
+                sh '''
+                  sleep 20
+                  curl ${HOSTNAME_DEPLOY_STAGING} | grep -q "Hello world!"
+                '''
+              }
+            }
+        }
       stage('Deploy in prod'){
           agent any
             when {
                 expression { GIT_BRANCH == 'origin/master' }
-            }
-            environment {
-                HOSTNAME_DEPLOY_PROD = "23.20.46.224"
             }
           steps {
             sshagent(credentials: ['SSH_AUTH_SERVER']) {
@@ -102,6 +115,18 @@ pipeline {
                 '''
             }
           }
-      }        
+      } 
+
+      stage('Test Prod') {
+          agent any
+          steps {
+             script {
+               sh '''
+                 sleep 20
+                 curl ${HOSTNAME_DEPLOY_PROD} | grep -q "Hello world!"
+               '''
+             }
+          }
+        }       
     }
 }
