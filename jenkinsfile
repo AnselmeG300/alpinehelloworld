@@ -1,14 +1,12 @@
-/* import shared library */
-@Library('shared-library')_
 pipeline {
     agent none
     environment {
-        DOCKERHUB_AUTH = credentials('blondel')
+        DOCKERHUB_AUTH = credentials('DockerHubCredentials')
         ID_DOCKER = "${DOCKERHUB_AUTH_USR}"
         PORT_EXPOSED = "80"
         IMAGE_NAME = "alpinebootcamp28"
         IMAGE_TAG = "v1.1"
-        DOCKER_USERNAME = 'blondel'
+        DOCKER_USERNAME = "${ID_DOCKER}"
     }
     stages {
       stage ('Build image'){
@@ -59,7 +57,7 @@ pipeline {
       stage('Deploy in staging'){
           agent any
             environment {
-                SERVER_IP = "54.91.153.34"
+                SERVER_IP = "54.167.33.165"
             }
           steps {
             sshagent(['SSH_AUTH_SERVER']) {
@@ -77,7 +75,7 @@ pipeline {
       stage('Deploy in prod'){
           agent any
             environment {
-                HOSTNAME_DEPLOY_PROD = "34.229.148.43"
+                HOSTNAME_DEPLOY_PROD = "23.20.46.224"
             }
           steps {
             sshagent(credentials: ['SSH_AUTH_SERVER']) {
@@ -98,12 +96,5 @@ pipeline {
             }
           }
       }        
-    }
-    post {
-        always {
-            script {
-                slackNotifier currentBuild.result
-            }
-        }
     }
 }
