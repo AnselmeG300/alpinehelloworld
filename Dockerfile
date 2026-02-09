@@ -1,5 +1,6 @@
 #Grab the latest alpine image
-FROM python:3.13.0a2-alpine
+FROM python:3.11-alpine
+
 
 # Install python and pip
 RUN apk add --no-cache --update python3 py3-pip bash
@@ -21,5 +22,4 @@ USER myuser
 
 # Run the app.  CMD is required to run on Heroku
 # $PORT is set by Heroku			
-CMD gunicorn --bind 0.0.0.0:$PORT wsgi 
-
+CMD gunicorn --bind 0.0.0.0:$PORT wsgi
